@@ -1,0 +1,8 @@
+requests
+pathlib
+dotenv
+logging
+python-telegram-bot
+colorama
+ollama
+

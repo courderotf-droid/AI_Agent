@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# IDE
+.idea/
+
+# Logs
+*.log
+
+# Configuration sensible
+.env
+*.env
+
+# Historique
+chat_history.json
+
+tests/
