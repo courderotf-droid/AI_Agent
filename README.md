@@ -19,16 +19,16 @@ ai_agent/
 ├── display/                           # Modules d'affichage et gestion des retours console/erreurs
 │   ├── gestion_erreurs.py             # Gestion centralisée des exceptions et erreurs
 │   └── style_print.py                 # Mise en forme et styles des affichages console
-├── logs/                              # Logique de gestion des logs et de l'historique
+├── logging/                           # Logique de gestion des logs et de l'historique
 │   ├── history_logs.py                # Gestion et persistance de l'historique des conversations
 │   ├── logger.py                      # Système de journalisation (logs)
 │   └── logs.log                       # Fichier de journalisation des événements
 ├── getenv.py                          # Chargement sécurisé des variables d'environnement
 ├── licence.txt                        # Fichier de licence du projet
 ├── main.py                            # Point d'entrée principal de l'agent
+├── context.py                         # Gestion du contexte
 ├── README.md                          # Documentation principale du projet
 ├── requierements.txt                  # Dépendances et bibliothèques requises
-├── récupérer_texte_telegram.py        # Récupération et traitement des messages entrants Telegram
 └── settings.env                       # Fichier de configuration des variables d'environnement
 ```
 ---

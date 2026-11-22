@@ -3,11 +3,32 @@ import apis.ollama_api as api
 import display.style_print as sp
 import ai_agent.logging.logger as log
 import display.gestion_erreurs as erreurs
+import context as ctx
 
 # Variables d'environnement
 from getenv import MODE_TEST, TELEGRAM, HISTORIQUE, dossier_actuel
 
+taille_du_contexte = ctx.taille_du_contexte
+streaming = False  # (False if TELEGRAM else True)
+
 try:
+    ## Gestion contexte
+    def get_context():
+        return ctx.contexte
+
+    def get_n_questions():
+        return int(ctx.n_de_questions)
+
+    def get_n_reponses():
+        return int(ctx.n_de_reponses)
+
+    def add_question():
+        ctx.define_n_questions(get_n_questions() + 1)
+
+    def add_reponse():
+        ctx.define_n_reponses(get_n_reponses() + 1)
+    # (Cet emplacement évite une erreur de nettoyage du contexte en cas d'erreur entérieure)
+
     ## Extraction des variables d'environnement et importation des bibliothèques utiles
     if TELEGRAM:
         import apis.lien_telegram as tele
@@ -15,15 +36,6 @@ try:
     if HISTORIQUE:
         import ai_agent.logging.history_logs as hist
     #
-
-    ## Initialisation de variables
-    contexte = []
-    taille_du_contexte = 6
-    n_de_questions = 0
-    n_de_reponses = 0
-    #
-
-    streaming = False #(False if TELEGRAM else True)
 
     sp.print_message_lancement(
         f"Chat avec Ollama (Interface: {"Telegram" if TELEGRAM else "Terminal"}, Mode test: {'activé' if MODE_TEST else 'désactivé'})"
@@ -36,18 +48,7 @@ try:
     prompt_systeme_agent = prompts['prompt_système_agent']
     prompt_agent_compression = prompts['prompt_agent_compression']
 
-    def ajouter_prompt_systeme():
-
-        global contexte
-
-        contexte.append({'role': 'system', 'content': prompt_systeme_agent})
-
-    ajouter_prompt_systeme()
-    #
-
     if not MODE_TEST:
-
-        print("Test de connexion à Ollama...")
 
         reponse = api.liste_modeles()
 
@@ -61,47 +62,8 @@ try:
                 "system"
             )
 
-    def compression_contexte():
-
-        global contexte
-        global taille_du_contexte
-        global prompt_agent_compression
-
-        moitie_limite_contexte = taille_du_contexte // 2
-
-        a_resumer = contexte[1:moitie_limite_contexte + 1]
-
-        texte_a_resumer = "\n".join(
-            [
-                f"{m['role']}: {m['content']}"
-                for m in a_resumer
-            ]
-        )
-
-        requete = prompt_agent_compression.format(texte_a_resumer=texte_a_resumer)
-
-        sp.print_message_auto("Contexte plein! Nettoyage en cours...")
-
-        resume = api.inferer_streaming(requete)
-
-        resume_formate = {
-            'role': 'system',
-            'content':
-            f"[Ceci est le résumé du contexte précédent.] {resume}"
-        }
-
-        contexte = (
-            [contexte[0], resume_formate]
-            +
-            contexte[-moitie_limite_contexte:]
-        )
-
-
     def traiter_message(entree):
 
-        global n_de_questions
-        global n_de_reponses
-        global contexte
         global streaming
 
         def logger_cmd(entree):
@@ -140,30 +102,29 @@ try:
         else:
 
             # Ajout fonction test de compression
-            if n_de_reponses > taille_du_contexte - 1 or entree == "test":
+            if get_n_reponses() > taille_du_contexte - 1 or entree == "test":
 
-                compression_contexte()
+                ctx.compression_contexte()
                 if entree == 'test':
                     logger_cmd(entree)
                 return ["Contexte nettoyé", False]
 
             if entree == "reset":
 
-                contexte = []
-                ajouter_prompt_systeme()
+                ctx.define_context([])
+                ctx.add_system_prompt()
                 logger_cmd(entree)
                 return ["Contexte réinitialisé.", False]
 
             if entree == "context":
 
                 logger_cmd(entree)
-
-                return [str(contexte), True]
+                return [str(get_context()), True]
 
             if entree == "count":
 
                 logger_cmd(entree)
-                return [f"Le contexte contient {n_de_questions} questions et {n_de_reponses} réponses.", False]
+                return [f"Le contexte contient {get_n_questions()} questions et {get_n_reponses()} réponses.", False]
 
         return False
 
@@ -182,10 +143,6 @@ try:
             log.info("réponse système", "system", contenu)
 
     async def handle_texte(data, context):
-
-        global contexte
-        global n_de_questions
-        global n_de_reponses
 
         entree = data["Texte"]
 
@@ -217,11 +174,11 @@ try:
                 
             else:
                 
-                contexte.append({'role': 'user', 'content': entree})
-                n_de_questions += 1
+                ctx.add_context({'role': 'user', 'content': entree})
+                add_question()
                 hist.logger_message(entree, 'user')
-                reponse = api.inferer(contexte)
-                n_de_reponses += 1
+                reponse = api.inferer(get_context())
+                add_reponse()
                 hist.logger_message(reponse, 'assistant')
 
             await tele.sortie_texte(reponse)
@@ -256,10 +213,10 @@ try:
                 sp.print_c(retour[0])
                 continue
 
-            n_de_questions += 1
+            add_question()
             hist.logger_message(entree, 'user')
 
-            contexte.append({'role': 'user', 'content': entree})
+            ctx.add_context({'role': 'user', 'content': entree})
             log.info("requete utilisateur", 'user')
 
             sp.print_role("\nOllama: ")
@@ -274,20 +231,20 @@ try:
                     reponse_assistant.append(texte)
 
                 api.reception_texte(handle_texte_api)
-                api.inferer_streaming(contexte)
+                api.inferer_streaming(get_context())
 
                 reponse_assistant = ''.join(reponse_assistant)
 
             else:
 
-                reponse_assistant = api.inferer(contexte)
+                reponse_assistant = api.inferer(get_context())
                 print(reponse_assistant)
 
             print()
 
-            contexte.append({'role': 'assistant', 'content': reponse_assistant})
+            ctx.add_context({'role': 'assistant', 'content': reponse_assistant})
             log.info("réponse de Ollama", 'assistant')
-            n_de_reponses += 1
+            add_reponse()
 
             hist.logger_message(reponse_assistant, 'assistant')
 
@@ -300,5 +257,6 @@ except Exception as e:
 
     erreurs.gerer_erreur(e)
 
+    contexte = get_context()
     if contexte and contexte[-1]['role'] == 'user':
-        contexte.pop()
+        ctx.define_context(contexte.pop())
