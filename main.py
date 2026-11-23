@@ -4,33 +4,17 @@ import display.style_print as sp
 import ai_agent.logging.logger as log
 import display.gestion_erreurs as erreurs
 import context as ctx
+import commands as cmd
+import vars
 
 # Variables d'environnement
-from getenv import MODE_TEST, TELEGRAM, HISTORIQUE, dossier_actuel
+from getenv import MODE_TEST, HISTORIQUE, dossier_actuel
 
 taille_du_contexte = ctx.taille_du_contexte
-streaming = False  # (False if TELEGRAM else True)
 
 try:
-    ## Gestion contexte
-    def get_context():
-        return ctx.contexte
-
-    def get_n_questions():
-        return int(ctx.n_de_questions)
-
-    def get_n_reponses():
-        return int(ctx.n_de_reponses)
-
-    def add_question():
-        ctx.define_n_questions(get_n_questions() + 1)
-
-    def add_reponse():
-        ctx.define_n_reponses(get_n_reponses() + 1)
-    # (Cet emplacement évite une erreur de nettoyage du contexte en cas d'erreur entérieure)
-
     ## Extraction des variables d'environnement et importation des bibliothèques utiles
-    if TELEGRAM:
+    if vars.TELEGRAM:
         import apis.lien_telegram as tele
 
     if HISTORIQUE:
@@ -38,7 +22,7 @@ try:
     #
 
     sp.print_message_lancement(
-        f"Chat avec Ollama (Interface: {"Telegram" if TELEGRAM else "Terminal"}, Mode test: {'activé' if MODE_TEST else 'désactivé'})"
+        f"Chat avec Ollama (Interface: {"Telegram" if vars.TELEGRAM else "Terminal"}, Mode test: {'activé' if MODE_TEST else 'désactivé'})"
     )
 
     ## Création du prompt système
@@ -61,72 +45,6 @@ try:
                 "Accès à l'API vérifié avec succès!",
                 "system"
             )
-
-    def traiter_message(entree):
-
-        global streaming
-
-        def logger_cmd(entree):
-            log.info("commande utilisateur", "user", entree)
-
-        # Evite les fautes de frappe
-        entree = entree.lower()
-
-        if entree == 'stream':
-
-            logger_cmd(entree)
-
-            if TELEGRAM:
-
-                return ["La fonction streaming n'est pas disponible dans Telegram.", False]
-
-            else:
-
-                entree = sp.input_c("System (choisir entre 'yes' et 'no'): ").lower()
-
-                if entree == 'yes':
-
-                    streaming = True
-                    return ["Streaming activé", False]
-
-                elif entree == 'no':
-
-                    streaming = False
-                    return ["Streaming désactivé", False]
-
-                else:
-
-                    # Marqué comme erreur
-                    return ["Commande incorrecte", True]
-
-        else:
-
-            # Ajout fonction test de compression
-            if get_n_reponses() > taille_du_contexte - 1 or entree == "test":
-
-                ctx.compression_contexte()
-                if entree == 'test':
-                    logger_cmd(entree)
-                return ["Contexte nettoyé", False]
-
-            if entree == "reset":
-
-                ctx.define_context([])
-                ctx.add_system_prompt()
-                logger_cmd(entree)
-                return ["Contexte réinitialisé.", False]
-
-            if entree == "context":
-
-                logger_cmd(entree)
-                return [str(get_context()), True]
-
-            if entree == "count":
-
-                logger_cmd(entree)
-                return [f"Le contexte contient {get_n_questions()} questions et {get_n_reponses()} réponses.", False]
-
-        return False
 
     def traiter_retour(retour):
 
@@ -163,7 +81,7 @@ try:
 
             retour = await boucle.run_in_executor(
                 None,
-                traiter_message,
+                cmd.traiter_message,
                 entree
             )
 
@@ -175,10 +93,10 @@ try:
             else:
                 
                 ctx.add_context({'role': 'user', 'content': entree})
-                add_question()
+                ctx.add_question()
                 hist.logger_message(entree, 'user')
-                reponse = api.inferer(get_context())
-                add_reponse()
+                reponse = api.inferer(ctx.get_context())
+                ctx.add_reponse()
                 hist.logger_message(reponse, 'assistant')
 
             await tele.sortie_texte(reponse)
@@ -188,7 +106,7 @@ try:
         tele.fix_print()
         print(f"{reponse}\n")
 
-    if TELEGRAM:
+    if vars.TELEGRAM:
 
         tele.réception_texte(handle_texte)
         tele.start_bot()
@@ -205,7 +123,7 @@ try:
                 break
 
             # Indique si le message a été intercepté
-            retour = traiter_message(entree)
+            retour = cmd.traiter_message(entree)
 
             if retour:
                 
@@ -213,7 +131,7 @@ try:
                 sp.print_c(retour[0])
                 continue
 
-            add_question()
+            ctx.add_question()
             hist.logger_message(entree, 'user')
 
             ctx.add_context({'role': 'user', 'content': entree})
@@ -222,7 +140,7 @@ try:
             sp.print_role("\nOllama: ")
 
             #Traitement de la réponse de l'IA
-            if streaming:
+            if vars.streaming:
 
                 reponse_assistant = []
 
@@ -231,20 +149,20 @@ try:
                     reponse_assistant.append(texte)
 
                 api.reception_texte(handle_texte_api)
-                api.inferer_streaming(get_context())
+                api.inferer_streaming(ctx.get_context())
 
                 reponse_assistant = ''.join(reponse_assistant)
 
             else:
 
-                reponse_assistant = api.inferer(get_context())
+                reponse_assistant = api.inferer(ctx.get_context())
                 print(reponse_assistant)
 
             print()
 
             ctx.add_context({'role': 'assistant', 'content': reponse_assistant})
             log.info("réponse de Ollama", 'assistant')
-            add_reponse()
+            ctx.add_reponse()
 
             hist.logger_message(reponse_assistant, 'assistant')
 
@@ -257,6 +175,6 @@ except Exception as e:
 
     erreurs.gerer_erreur(e)
 
-    contexte = get_context()
+    contexte = ctx.get_context()
     if contexte and contexte[-1]['role'] == 'user':
         ctx.define_context(contexte.pop())

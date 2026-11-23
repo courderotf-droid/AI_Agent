@@ -38,6 +38,21 @@ try:
         contexte.append(dict)
         return True
 
+    def get_context():
+        return contexte
+
+    def get_n_questions():
+        return int(n_de_questions)
+
+    def get_n_reponses():
+        return int(n_de_reponses)
+
+    def add_question():
+        define_n_questions(get_n_questions() + 1)
+
+    def add_reponse():
+        define_n_reponses(get_n_reponses() + 1)
+
     def add_system_prompt():
         global contexte
 

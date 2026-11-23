@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from display import style_print as sp
+from ai_agent.display import style_print as sp
 from . import logger as log
 
 nom_fichier = "chat_history.json"
