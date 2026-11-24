@@ -46,6 +46,10 @@ try:
                 "system"
             )
 
+    def hist_wrapper(texte, role):
+        if HISTORIQUE:
+            hist.logger_message(texte, role)
+
     def traiter_retour(retour):
 
         # Récupère les variables
@@ -94,10 +98,10 @@ try:
                 
                 ctx.add_context({'role': 'user', 'content': entree})
                 ctx.add_question()
-                hist.logger_message(entree, 'user')
+                hist_wrapper(entree, 'user')
                 reponse = api.inferer(ctx.get_context())
                 ctx.add_reponse()
-                hist.logger_message(reponse, 'assistant')
+                hist_wrapper(reponse, 'assistant')
 
             await tele.sortie_texte(reponse)
 
@@ -132,7 +136,7 @@ try:
                 continue
 
             ctx.add_question()
-            hist.logger_message(entree, 'user')
+            hist_wrapper(entree, 'user')
 
             ctx.add_context({'role': 'user', 'content': entree})
             log.info("requete utilisateur", 'user')
@@ -164,7 +168,7 @@ try:
             log.info("réponse de Ollama", 'assistant')
             ctx.add_reponse()
 
-            hist.logger_message(reponse_assistant, 'assistant')
+            hist_wrapper(reponse_assistant, 'assistant')
 
 
 except KeyboardInterrupt:

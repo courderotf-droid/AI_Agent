@@ -3,7 +3,8 @@ from datetime import datetime
 from ai_agent.display import style_print as sp
 from . import logger as log
 
-nom_fichier = "chat_history.json"
+from ai_agent.getenv import dossier_actuel as dossier_source
+nom_fichier = str(dossier_source) + "/chat_history.json"
 
 def erreur(message):
     sp.print_erreur(f"Erreur: {message}")
