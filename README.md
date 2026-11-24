@@ -27,6 +27,8 @@ ai_agent/
 ├── licence.txt                        # Fichier de licence du projet
 ├── main.py                            # Point d'entrée principal de l'agent
 ├── context.py                         # Gestion du contexte
+├── commands.py                        # Gestionnaire de commandes utilisateur
+├── vars.py                            # Espace de stockage des variables communes
 ├── README.md                          # Documentation principale du projet
 ├── requierements.txt                  # Dépendances et bibliothèques requises
 └── settings.env                       # Fichier de configuration des variables d'environnement
