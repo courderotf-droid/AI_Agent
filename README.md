@@ -12,6 +12,7 @@
 ai_agent/
 ├── apis/                              # Modules d'intégration avec les API externes
 │   ├── lien_telegram.py               # Gestion des interactions avec le bot Telegram
+│   ├── llamacpp_api.py                # Interface de communication avec l'API llama.cpp
 │   └── ollama_api.py                  # Interface de communication avec l'API Ollama
 ├── data/                              # Fichiers de données, de configuration et journaux de stockage
 │   ├── chat_history.json              # Stockage de l'historique des conversations
@@ -37,7 +38,7 @@ ai_agent/
 
 ## ✨ Fonctionnalités
 
-- **Intégration Ollama** : Utilisation de modèles de langage exécutés localement pour des réponses rapides et sécurisées.
+- **Intégration Ollama et de llama.cpp** : Utilisation de modèles de langage exécutés localement pour des réponses rapides et sécurisées.
 - **Passerelle Telegram** : Possibilité d'interagir avec l'agent directement via l'application de messagerie Telegram.
 - **Historique Persistant** : Sauvegarde automatique des échanges dans `chat_history.json` pour conserver le contexte des conversations.
 - **Gestion des Erreurs et Logs** : Suivi rigoureux des événements et de la stabilité de l'application grâce au module de journalisation.

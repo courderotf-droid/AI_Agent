@@ -1,5 +1,5 @@
+
 import json, asyncio
-import apis.ollama_api as api
 import display.style_print as sp
 import ai_agent.logging.logger as log
 import display.gestion_erreurs as erreurs
@@ -8,11 +8,16 @@ import commands as cmd
 import vars
 
 # Variables d'environnement
-from getenv import MODE_TEST, HISTORIQUE, dossier_actuel
+from getenv import MODE_TEST, HISTORIQUE, dossier_actuel, LLM_ENGINE
 
 taille_du_contexte = ctx.taille_du_contexte
 
 try:
+    if LLM_ENGINE == "ollama":
+        import apis.ollama_api as ollama
+    elif LLM_ENGINE == "llama.cpp":
+        import apis.llamacpp_api as llamacpp
+
     ## Extraction des variables d'environnement et importation des bibliothèques utiles
     if vars.TELEGRAM:
         import apis.lien_telegram as tele
@@ -30,16 +35,35 @@ try:
         prompts = json.load(f)
 
     prompt_systeme_agent = prompts['prompt_système_agent']
-    prompt_agent_compression = prompts['prompt_agent_compression']
+
+    ## Routage API
+    def liste_modeles():
+        if LLM_ENGINE == "ollama":
+            return ollama.liste_modeles()
+        elif LLM_ENGINE == "llama.cpp":
+            return llamacpp.liste_modeles()
+
+    def inferer(contexte):
+        if LLM_ENGINE == "ollama":
+            return ollama.inferer(contexte)
+        elif LLM_ENGINE == "llama.cpp":
+            return llamacpp.inferer(contexte)
+
+    def inferer_streaming(contexte, callback):
+        if LLM_ENGINE == "ollama":
+            return ollama.inferer_streaming(contexte, callback)
+        elif LLM_ENGINE == "llama.cpp":
+            return llamacpp.inferer_streaming(contexte, callback)
+    #
 
     if not MODE_TEST:
 
-        reponse = api.liste_modeles()
+        reponse = liste_modeles()
 
         # A revoir/vérifier
         if not reponse in ['error', 'Error', 'ERROR']:
 
-            print("API Ollama connectée avec succès!")
+            print("API du moteur connectée avec succès!")
 
             log.info(
                 "Accès à l'API vérifié avec succès!",
@@ -93,13 +117,13 @@ try:
 
                 traiter_retour(retour)
                 reponse = retour[0]
-                
+
             else:
-                
+
                 ctx.add_context({'role': 'user', 'content': entree})
                 ctx.add_question()
                 hist_wrapper(entree, 'user')
-                reponse = api.inferer(ctx.get_context())
+                reponse = inferer(ctx.get_context())
                 ctx.add_reponse()
                 hist_wrapper(reponse, 'assistant')
 
@@ -130,7 +154,7 @@ try:
             retour = cmd.traiter_message(entree)
 
             if retour:
-                
+
                 traiter_retour(retour)
                 sp.print_c(retour[0])
                 continue
@@ -152,14 +176,13 @@ try:
                     print(texte, end='', flush=True)
                     reponse_assistant.append(texte)
 
-                api.reception_texte(handle_texte_api)
-                api.inferer_streaming(ctx.get_context())
+                inferer_streaming(ctx.get_context(), handle_texte_api)
 
                 reponse_assistant = ''.join(reponse_assistant)
 
             else:
 
-                reponse_assistant = api.inferer(ctx.get_context())
+                reponse_assistant = inferer(ctx.get_context())
                 print(reponse_assistant)
 
             print()
